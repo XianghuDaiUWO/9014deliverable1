@@ -16,7 +16,7 @@ CREATE TABLE customer_table (
     customer_unique_id VARCHAR(64),
     customer_id VARCHAR(64),
     customer_zip_code_prefix CHAR(5) CHECK (customer_zip_code_prefix ~ '^[0-9]{5}$'),
-    CONSTRAINT pk_customer_table PRIMARY KEY (customer_unique_id),
+    CONSTRAINT pk_customer_table PRIMARY KEY (customer_id),
     CONSTRAINT fk_customer_table FOREIGN KEY (customer_zip_code_prefix) REFERENCES geolocation_table(geolocation_zip_code_prefix)
 );
 
@@ -38,8 +38,8 @@ CREATE TABLE order_table (
     order_delivered_carrier_date TIMESTAMP,
     order_delivered_customer_date TIMESTAMP,
     order_estimated_delivery_date TIMESTAMP,
-    CONSTRAINT pk_order_table PRIMARY KEY (order_id)
-    -- CONSTRAINT fk_order_table FOREIGN KEY (customer_id) REFERENCES customer_table(customer_id)
+    CONSTRAINT pk_order_table PRIMARY KEY (order_id),
+    CONSTRAINT fk_order_table FOREIGN KEY (customer_id) REFERENCES customer_table(customer_id)
 );
 
 CREATE TABLE review_table (
@@ -93,7 +93,9 @@ CREATE TABLE Order_Item (
     freight_value DECIMAL(10,2) NOT NULL,  
 
     CONSTRAINT pk_order_item PRIMARY KEY (order_id, order_item_id),
-    CONSTRAINT fk_orderitem_order FOREIGN KEY (order_id) REFERENCES order_table(order_id)  -- Modifying Table & Column Names
+    CONSTRAINT fk_orderitem_order FOREIGN KEY (order_id) REFERENCES order_table(order_id),  -- Modifying Table & Column Names
+    CONSTRAINT fk_orderitem_order2 FOREIGN KEY (product_id) REFERENCES product_table(product_id),
+    CONSTRAINT fk_orderitem_order3 FOREIGN KEY (seller_id) REFERENCES seller_table(seller_id)
 );
 
 -- Populate values into geolocation_table
@@ -107,7 +109,7 @@ CREATE TEMPORARY TABLE temp_geolocation_table(
     column5 VARCHAR(5)
 );
 
-\COPY temp_geolocation_table FROM '/Users/xavierd/Downloads/archive (3)/olist_geolocation_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_geolocation_table FROM '/Users/xavierd/Downloads/dataset/olist_geolocation_dataset.csv' DELIMITER ',' CSV HEADER;
 
 -- Delete repeat values inside the temp table
 
@@ -139,7 +141,7 @@ CREATE TEMPORARY TABLE temp_customer_table(
     column5 VARCHAR(80)
 );
 
-\COPY temp_customer_table FROM '/Users/xavierd/Downloads/archive (3)/olist_customers_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_customer_table FROM '/Users/xavierd/Downloads/dataset/olist_customers_dataset.csv' DELIMITER ',' CSV HEADER;
 
 -- some customers' zip code prefix is not recorded in the geolocation_table, so we need to add them into the geolocation_table first before inserting values into the customer table
 INSERT INTO geolocation_table (geolocation_zip_code_prefix, geolocation_lat, geolocation_lng, geolocation_city, geolocation_state)
@@ -157,7 +159,7 @@ WHERE NOT EXISTS (
     WHERE t.column3 = g.geolocation_zip_code_prefix
 );
 
-INSERT INTO customer_table (customer_unique_id, customer_id, customer_zip_code_prefix)
+INSERT INTO customer_table (customer_id, customer_unique_id, customer_zip_code_prefix)
 SELECT column1, column2, column3 FROM temp_customer_table;
 
 DROP TABLE temp_customer_table;
@@ -171,7 +173,7 @@ CREATE TEMPORARY TABLE temp_seller_table(
     column4 VARCHAR(5)
 );
 
-\COPY temp_seller_table FROM '/Users/xavierd/Downloads/archive (3)/olist_sellers_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_seller_table FROM '/Users/xavierd/Downloads/dataset/olist_sellers_dataset.csv' DELIMITER ',' CSV HEADER;
 
 INSERT INTO geolocation_table (geolocation_zip_code_prefix, geolocation_lat, geolocation_lng, geolocation_city, geolocation_state)
 SELECT DISTINCT
@@ -205,7 +207,7 @@ CREATE TEMPORARY TABLE temp_order_table (
     column8 TIMESTAMP     --  order_estimated_delivery_date
 );
 
-\COPY temp_order_table FROM '/Users/xavierd/Downloads/archive (3)/olist_orders_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_order_table FROM '/Users/xavierd/Downloads/dataset/olist_orders_dataset.csv' DELIMITER ',' CSV HEADER;
 
 INSERT INTO order_table (order_id, customer_id, order_status, order_purchase_timestamp, order_approved_at, order_delivered_carrier_date, order_delivered_customer_date, order_estimated_delivery_date)
 SELECT column1, column2, column3, column4, column5, column6, column7, column8 FROM temp_order_table;
@@ -223,7 +225,7 @@ CREATE TEMPORARY TABLE temp_review_table (
     column7 TIMESTAMP     --  review_answer_timestamp
 );
 
-\COPY temp_review_table FROM '/Users/xavierd/Downloads/archive (3)/olist_order_reviews_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_review_table FROM '/Users/xavierd/Downloads/dataset/olist_order_reviews_dataset.csv' DELIMITER ',' CSV HEADER;
 
 INSERT INTO review_table (review_id, order_id, review_score, review_comment_title, review_comment_message, review_creation_date, review_answer_timestamp)
 SELECT column1, column2, column3, column4, column5, column6, column7 FROM temp_review_table;
@@ -239,7 +241,7 @@ CREATE TEMPORARY TABLE temp_payment_table (
     column5 FLOAT         --  payment_value
 );
 
-\COPY temp_payment_table FROM '/Users/xavierd/Downloads/archive (3)/olist_order_payments_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_payment_table FROM '/Users/xavierd/Downloads/dataset/olist_order_payments_dataset.csv' DELIMITER ',' CSV HEADER;
 
 INSERT INTO payment_table (order_id, payment_sequencial, payment_type, payment_installments, payment_value)
 SELECT column1, column2, column3, column4, column5 FROM temp_payment_table;
@@ -259,7 +261,7 @@ CREATE TEMPORARY TABLE temp_product_table (
     column9 FLOAT         --  product_width_cm
 );
 
-\COPY temp_product_table FROM '/Users/xavierd/Downloads/archive (3)/olist_products_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_product_table FROM '/Users/xavierd/Downloads/dataset/olist_products_dataset.csv' DELIMITER ',' CSV HEADER;
 
 INSERT INTO product_table (
     product_id, 
@@ -299,7 +301,7 @@ CREATE TEMPORARY TABLE temp_order_item_table(
 );
 
 -- Import data from CSV Files
-\COPY temp_order_item_table FROM '/Users/xavierd/Downloads/archive (3)/olist_order_items_dataset.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_order_item_table FROM '/Users/xavierd/Downloads/dataset/olist_order_items_dataset.csv' DELIMITER ',' CSV HEADER;
 
 -- DELETE FROM temp_order_item_table
 -- WHERE ctid IN (
@@ -327,7 +329,7 @@ CREATE TEMPORARY TABLE temp_category_translation_table(
 );
 
 -- import data from CSV file into temporary table
-\COPY temp_category_translation_table FROM '/Users/xavierd/Downloads/archive (3)/product_category_name_translation.csv' DELIMITER ',' CSV HEADER;
+\COPY temp_category_translation_table FROM '/Users/xavierd/Downloads/dataset/product_category_name_translation.csv' DELIMITER ',' CSV HEADER;
 
 -- insert data from temporary table into Category_Translation table
 INSERT INTO Category_Translation (product_category_name, product_category_name_english)
